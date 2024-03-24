@@ -22,3 +22,7 @@ pre:hover {
     cursor: pointer;
     text-decoration: underline;
 }
+
+html {
+    scroll-behavior: smooth;
+  }

@@ -19,19 +19,13 @@ function timestampToMilliseconds(timestamp) {
   return totalMilliseconds/1000;
 }
 
-function setVideoTime(element)
-{
-  
-}
-
-
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
 
-  console.log(msg)
+  //console.log(msg)
   if (msg.captions) {
     //modified_captions = addNewlineBeforeTimestamps(msg.captions)
     //console.log(msg.captions)
-    console.log(msg.captions)
+    //console.log(msg.captions)
     if(msg.source.includes("utexas"))
     {
       let caption_divs = [];
@@ -93,3 +87,44 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
    
   }
 });
+
+let vid = document.getElementsByTagName("video")[0];
+vid.ontimeupdate = function() {
+  let existingDiv = document.getElementsByClassName('caption-box')[0];
+  let children = existingDiv.childNodes;
+  console.log(children)
+  let mindif = 10000;
+  let cur = {};
+  seekedTime = vid.currentTime;
+  for (cap of children)
+  {
+    let dif = seekedTime - cap.dataset.time;
+    if (dif >=0 && dif <= mindif)
+    {
+      mindif = dif;
+      cur = cap;
+    }
+  }
+  cur.scrollIntoView({ block: 'center',  behavior: 'smooth' });
+
+};
+
+vid.onseeked = function() {
+  let existingDiv = document.getElementsByClassName('caption-box')[0];
+  let children = existingDiv.childNodes;
+  console.log(children)
+  let mindif = 10000;
+  let cur = {};
+  seekedTime = vid.currentTime;
+  for (cap of children)
+  {
+    let dif = seekedTime - cap.dataset.time;
+    if (dif >=0 && dif <= mindif)
+    {
+      mindif = dif;
+      cur = cap;
+    }
+  }
+  cur.scrollIntoView({ block: 'center' });
+
+};
