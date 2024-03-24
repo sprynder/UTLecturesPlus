@@ -16,3 +16,9 @@
 .ic-Layout-contentWrapper{
     height: 90%;
 }
+
+pre:hover {
+    color: blue;
+    cursor: pointer;
+    text-decoration: underline;
+}

@@ -56,7 +56,8 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       injectElement.className = "caption-box";
       for (obj of caption_divs)
       {
-        const preElement = document.createElement('pre')
+        const preElement = document.createElement('pre');
+        //preElement.className = "hover";
         preElement.innerHTML = obj.timestamp + "\n"+obj.caption;
         preElement.dataset.time = obj.milliseconds;
         preElement.addEventListener('click', function(e)
