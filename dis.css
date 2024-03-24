@@ -1,0 +1,18 @@
+.caption-box {
+   
+    width: 20%; 
+    border: 1px solid #ccc;
+    font: 16px/26px Georgia, Garamond, Serif;
+    overflow: auto;
+}
+
+/* Flex container */
+.flex-container {
+    height: 90%;
+    display: flex;
+    flex-direction: row;
+}
+
+.ic-Layout-contentWrapper{
+    height: 90%;
+}
