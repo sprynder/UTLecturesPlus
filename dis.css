@@ -22,7 +22,12 @@ pre:hover {
     cursor: pointer;
     text-decoration: underline;
 }
-
+pre {
+    transition: background-color .5s ease; /* Transition for smooth highlighting */
+    width: 100%;
+}
 html {
     scroll-behavior: smooth;
   }
+
+  

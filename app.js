@@ -92,7 +92,7 @@ let vid = document.getElementsByTagName("video")[0];
 vid.ontimeupdate = function() {
   let existingDiv = document.getElementsByClassName('caption-box')[0];
   let children = existingDiv.childNodes;
-  console.log(children)
+  // console.log(children)
   let mindif = 10000;
   let cur = {};
   seekedTime = vid.currentTime;
@@ -104,8 +104,11 @@ vid.ontimeupdate = function() {
       mindif = dif;
       cur = cap;
     }
+    cap.style.backgroundColor = "white"
   }
   cur.scrollIntoView({ block: 'center',  behavior: 'smooth' });
+  cur.style.backgroundColor = "yellow";  
+  
 
 };
 
