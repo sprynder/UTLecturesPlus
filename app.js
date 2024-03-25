@@ -1,7 +1,3 @@
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 function timestampToMilliseconds(timestamp) {
   // Split the timestamp into hours, minutes, seconds, and seconds
   const [hours, minutes, secondsWithMillis] = timestamp.split(':');
@@ -36,11 +32,19 @@ function auto_scroll() {
     }
     cap.style.backgroundColor = "white"
   }
-  cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  cur.style.backgroundColor = "yellow";
+  if (cur) {
+    cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    cur.style.backgroundColor = "LightGray";
+  }
 };
+
+
 let vid = document.getElementsByTagName("video")[0];
-vid.ontimeupdate = auto_scroll;
+if (vid) {
+  vid.ontimeupdate = auto_scroll;
+}
+
+
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
 
   //console.log(msg)
@@ -86,37 +90,38 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       const buttonDiv = document.createElement('div');
       buttonDiv.classList.add("right");
       const button = document.createElement('button');
-      button.innerHTML = "Auto-Scroll"
-      button.onclick = function(){
-        if(!scroll)
-        {
+      button.innerHTML = "Auto-Scroll: On"
+      button.onclick = function () {
+        if (!scroll) {
           if (vid)
-          vid.ontimeupdate = auto_scroll;
+            vid.ontimeupdate = auto_scroll;
           scroll = true;
           button.style.background = "white";
+          button.innerHTML = "Auto-Scroll: On"
         }
-        else{
+        else {
           if (vid)
-          vid.ontimeupdate = function () {
-            let existingDiv = document.getElementsByClassName('caption-box')[0];
-            let children = existingDiv.childNodes;
-            // console.log(children)
-            let mindif = 10000;
-            let cur = {};
-            seekedTime = vid.currentTime;
-            for (cap of children) {
-              let dif = seekedTime - cap.dataset.time;
-              if (dif >= 0 && dif <= mindif) {
-                mindif = dif;
-                cur = cap;
+            vid.ontimeupdate = function () {
+              let existingDiv = document.getElementsByClassName('caption-box')[0];
+              let children = existingDiv.childNodes;
+              // console.log(children)
+              let mindif = 10000;
+              let cur = {};
+              seekedTime = vid.currentTime;
+              for (cap of children) {
+                let dif = seekedTime - cap.dataset.time;
+                if (dif >= 0 && dif <= mindif) {
+                  mindif = dif;
+                  cur = cap;
+                }
+                cap.style.backgroundColor = "white"
               }
-              cap.style.backgroundColor = "white"
-            }
-            //cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            cur.style.backgroundColor = "yellow";
-          };
+              //cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              cur.style.backgroundColor = "LightGray";
+            };
           scroll = false;
-          button.style.backgroundColor = "blue";
+          button.style.backgroundColor = "#DCDCDC";
+          button.innerHTML = "Auto-Scroll: Off"
         }
 
       }

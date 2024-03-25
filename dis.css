@@ -10,7 +10,8 @@
 
 .captionBlob
 {
-width: 30%
+    padding: 10px;
+width: 20%
 }
 
 .right
@@ -20,7 +21,7 @@ width: 30%
 }
 /* Flex container */
 .flex-container {
-    height: 90%;
+    height: 85%;
     display: flex;
     flex-direction: row;
 }
@@ -30,17 +31,18 @@ width: 30%
 }
 
 pre:hover {
-    color: blue;
+    color: #6495ED;
     cursor: pointer;
-    text-decoration: underline;
+    /* text-decoration: underline; */
 }
 pre {
     transition: background-color .5s ease; /* Transition for smooth highlighting */
     width: 90%;
     overflow-x: auto;
     white-space: pre-wrap;
-    font-size: 0.9vw;
-    margin: 1em;
+    font-size: 1vw;
+    padding: 2.5%;
+    margin: 2.5%;
     line-height: 1;
     overflow-y: hidden;
 }
@@ -75,11 +77,11 @@ html {
     word-wrap: break-word;
   }
   
-  .button-4:hover {
+  /* .button-4:hover {
     background-color: #F3F4F6;
     text-decoration: none;
     transition-duration: 0.1s;
-  }
+  } */
   
   .button-4:disabled {
     background-color: #FAFBFC;
