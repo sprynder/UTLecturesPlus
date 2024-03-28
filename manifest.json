@@ -1,29 +1,29 @@
 {
-    "manifest_version": 2,
+    "manifest_version": 3,
     "name": "UT Transcriptor",
     "description": "Base Level Extension",
-    "version": "1.0",
+    "version": "2.0",
     "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "css":["dis.css"],
-            "js": [
-                "app.js"
-            ]
-        }
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "css": [
+          "dis.css"
+        ],
+        "js": [
+          "app.js"
+        ]
+      }
     ],
     "permissions": [
-        "webRequest",
-        "webRequestBlocking",
-        "tabs",
-        "*://*/*"
+      "webRequest",
+      "tabs"
     ],
+    "host_permissions": [
+        "*://lecturecapture.la.utexas.edu/*"
+      ],
     "background": {
-        "scripts": [
-          "background.js"
-        ],
-        "persistent": true
-      }    
-}
+      "service_worker": "background.js"
+    }
+  }
