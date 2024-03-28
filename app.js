@@ -132,6 +132,48 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       document.body.appendChild(flexContainer);
       //document.body.appendChild(button);
+
+      // Function to handle search functionality
+      function handleSearch() {
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        const captions = document.querySelectorAll('.caption-box pre');
+        
+        captions.forEach(caption => {
+          const text = caption.textContent.toLowerCase();
+          if (text.includes(searchInput)) {
+            caption.style.display = 'block';
+            const highlightedText = text.replace(new RegExp(searchInput, 'gi'), match => `<span class="highlight">${match}</span>`);
+            caption.innerHTML = highlightedText;
+          } else {
+            caption.style.display = 'none';
+          }
+        });
+      }
+
+      // Create search bar element
+      const searchBar = document.createElement('input');
+      searchBar.setAttribute('type', 'text');
+      searchBar.setAttribute('id', 'searchInput');
+      searchBar.setAttribute('placeholder', 'Search captions...');
+      searchBar.addEventListener('input', handleSearch);
+
+      // Create container div to hold search bar and captionBlob
+      const containerDiv = document.createElement('div');
+      containerDiv.classList.add('search-container');
+      containerDiv.appendChild(searchBar);
+
+      // Get reference to existing captionBlob div
+      const captionBlob = document.querySelector('.captionBlob');
+
+      // Insert container div before the captionBlob div
+      captionBlob.parentNode.insertBefore(containerDiv, captionBlob);
+
+      // Move the captionBlob inside the container div
+      containerDiv.appendChild(captionBlob);
+
+      // Adjust styles if needed
+      containerDiv.style.display = 'flex';
+      containerDiv.style.flexDirection = 'column';
     }
   }
 });

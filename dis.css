@@ -11,7 +11,24 @@
 .captionBlob
 {
     padding: 10px;
-width: 20%
+    height:  95%;
+}
+
+.search-container 
+{
+    padding-top: 10px;
+    width: 20%;
+}
+
+#searchInput 
+{
+  width: 90%;
+  margin: auto;
+}
+
+.highlight {
+  background-color: yellow;
+  font-weight: bold;
 }
 
 .right
