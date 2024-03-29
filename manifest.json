@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "UT Transcriptor",
+    "name": "UT Lectures Plus",
     "description": "Base Level Extension",
     "version": "2.0",
     "content_scripts": [
@@ -21,7 +21,7 @@
       "tabs"
     ],
     "host_permissions": [
-        "*://lecturecapture.la.utexas.edu/*"
+      "<all_urls>"
       ],
     "background": {
       "service_worker": "background.js"

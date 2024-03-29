@@ -23,3 +23,5 @@ chrome.webRequest.onCompleted.addListener(function (e) {
 
 
 // //"*://*/*"
+
+//         //"*://lecturecapture.la.utexas.edu/*"
