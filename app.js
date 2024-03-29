@@ -15,6 +15,11 @@ function timestampToMilliseconds(timestamp) {
   return totalMilliseconds / 1000;
 }
 
+function isNumeric(input) {
+  var isValid = /^\d+$/.test(input);
+  return isValid;
+}
+
 let scroll = true;
 
 function auto_scroll() {
@@ -48,7 +53,8 @@ if (vid) {
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
 
   //console.log(msg)
-  if (msg.captions) {
+  let loadCheck = document.getElementsByClassName('flex-container')[0]
+  if (msg.captions && !loadCheck) {
     //modified_captions = addNewlineBeforeTimestamps(msg.captions)
     //console.log(msg.captions)
     if (msg.source.includes("utexas")) {
@@ -56,15 +62,33 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       let captions = msg.captions;
       let caption_chunks = captions.split("\n\n");
       caption_chunks.shift();
+      //caption_chunks = caption_chunks[1];
+      //caption_chunks = caption_chunks.split("\n\r\n");
+
       for (chunk of caption_chunks) {
         let s = chunk.split("\n");
-        console.log(s)
-        let timestamp = s[0].split(" ")[0];
-        let cap = s.slice(1).join(" ");
-        let milliseconds = timestampToMilliseconds(timestamp);
-        caption_divs.push({ timestamp: timestamp, caption: cap, milliseconds: milliseconds });
+        if (s.length > 1) {
+          var isValid = /^\d+$/.test("" + s[0]);
+          if (isNumeric(s[0].trim())) {
+            s.shift();
+          }
+          let timestamp = s[0].split(" ")[0];
+          let cap = s.slice(1).join(" ");
+          let milliseconds = timestampToMilliseconds(timestamp);
+          caption_divs.push({ timestamp: timestamp, caption: cap, milliseconds: milliseconds });
+        }
       }
-      let existingDiv = document.getElementsByClassName('videorow')[0];
+  
+      let existingDiv = null;
+      if(msg.source.includes("lecturecapture"))
+      {
+        existingDiv = document.getElementsByClassName('videorow')[0];
+      }
+      else if(msg.source.includes("tower"))
+      {
+        existingDiv = document.getElementById('video_app');//getElementsByClassName('videorow')[0];
+      }
+      document.getElementById('video_app');//getElementsByClassName('videorow')[0];
       const flexContainer = document.createElement('div');
       flexContainer.classList.add('flex-container');
 
@@ -136,8 +160,9 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       // Function to handle search functionality
       function handleSearch() {
         const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        if(searchInput != ""){
         const captions = document.querySelectorAll('.caption-box pre');
-        
+
         captions.forEach(caption => {
           const text = caption.textContent.toLowerCase();
           if (text.includes(searchInput)) {
@@ -148,6 +173,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
             caption.style.display = 'none';
           }
         });
+      }
       }
 
       // Create search bar element
@@ -182,7 +208,7 @@ if (vid)
   vid.onseeked = function () {
     let existingDiv = document.getElementsByClassName('caption-box')[0];
     let children = existingDiv.childNodes;
-    console.log(children)
+    //console.log(children)
     let mindif = 10000;
     let cur = {};
     seekedTime = vid.currentTime;

@@ -21,7 +21,7 @@
       "tabs"
     ],
     "host_permissions": [
-        "*://lecturecapture.la.utexas.edu/*"
+         "<all_urls>"
       ],
     "background": {
       "service_worker": "background.js"
