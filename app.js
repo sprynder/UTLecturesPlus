@@ -24,6 +24,7 @@ let scroll = true;
 
 function auto_scroll() {
   let existingDiv = document.getElementsByClassName('caption-box')[0];
+  if(existingDiv){
   let children = existingDiv.childNodes;
   // console.log(children)
   let mindif = 10000;
@@ -41,6 +42,7 @@ function auto_scroll() {
     cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
     cur.style.backgroundColor = "LightGray";
   }
+}
 };
 
 
@@ -88,7 +90,8 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       {
         existingDiv = document.getElementById('video_app');//getElementsByClassName('videorow')[0];
       }
-      document.getElementById('video_app');//getElementsByClassName('videorow')[0];
+      existingDiv.classList.add("video_style");
+      //document.getElementById('video_app');//getElementsByClassName('videorow')[0];
       const flexContainer = document.createElement('div');
       flexContainer.classList.add('flex-container');
 
@@ -207,6 +210,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 if (vid)
   vid.onseeked = function () {
     let existingDiv = document.getElementsByClassName('caption-box')[0];
+    if(existingDiv){
     let children = existingDiv.childNodes;
     //console.log(children)
     let mindif = 10000;
@@ -219,6 +223,7 @@ if (vid)
         cur = cap;
       }
     }
+    if(cur)
     cur.scrollIntoView({ block: 'center' });
-
+  }
   };

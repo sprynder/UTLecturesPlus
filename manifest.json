@@ -21,7 +21,7 @@
       "tabs"
     ],
     "host_permissions": [
-         "<all_urls>"
+      "*://*.la.utexas.edu/*"
       ],
     "background": {
       "service_worker": "background.js"
