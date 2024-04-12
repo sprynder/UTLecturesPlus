@@ -7,6 +7,27 @@
     overflow: auto;
     resize: horizontal;
 }
+.top_padding {
+  margin-top: 50px;
+}
+
+.cascade_addon *{
+  width: 100%;
+  height:  100%;
+ 
+}
+
+.container_addon {
+  width: 100% !important;
+  height:  100%;
+  max-width: 100% !important;
+}
+
+.big_video_addon {
+  width: 100% !important;
+  height:  100% !important;
+ 
+}
 
 .captionBlob
 {
@@ -18,6 +39,12 @@
 {
     padding-top: 10px;
     width: 20%;
+}
+
+.search-container-tower 
+{
+    width: 20%;
+    height: 100%;
 }
 
 #searchInput 

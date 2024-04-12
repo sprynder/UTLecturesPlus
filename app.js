@@ -24,25 +24,25 @@ let scroll = true;
 
 function auto_scroll() {
   let existingDiv = document.getElementsByClassName('caption-box')[0];
-  if(existingDiv){
-  let children = existingDiv.childNodes;
-  // console.log(children)
-  let mindif = 10000;
-  let cur = {};
-  seekedTime = vid.currentTime;
-  for (cap of children) {
-    let dif = seekedTime - cap.dataset.time;
-    if (dif >= 0 && dif <= mindif) {
-      mindif = dif;
-      cur = cap;
+  if (existingDiv) {
+    let children = existingDiv.childNodes;
+    // console.log(children)
+    let mindif = 10000;
+    let cur = {};
+    seekedTime = vid.currentTime;
+    for (cap of children) {
+      let dif = seekedTime - cap.dataset.time;
+      if (dif >= 0 && dif <= mindif) {
+        mindif = dif;
+        cur = cap;
+      }
+      cap.style.backgroundColor = "white"
     }
-    cap.style.backgroundColor = "white"
+    if (cur) {
+      cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      cur.style.backgroundColor = "LightGray";
+    }
   }
-  if (cur) {
-    cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    cur.style.backgroundColor = "LightGray";
-  }
-}
 };
 
 
@@ -80,15 +80,20 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
           caption_divs.push({ timestamp: timestamp, caption: cap, milliseconds: milliseconds });
         }
       }
-  
+
       let existingDiv = null;
-      if(msg.source.includes("lecturecapture"))
-      {
+      if (msg.source.includes("lecturecapture")) {
         existingDiv = document.getElementsByClassName('videorow')[0];
       }
-      else if(msg.source.includes("tower"))
-      {
+      else if (msg.source.includes("tower")) {
         existingDiv = document.getElementById('video_app');//getElementsByClassName('videorow')[0];
+        // document.getElementById('video_app').classList.add("video_style_addon");
+        document.getElementsByClassName('container')[0].classList.add("container_addon");
+        document.querySelector("#video_app > div > div").classList.add("container_addon");
+        document.querySelector("#video_app > div > div > div:nth-child(2)").classList.add("container_addon");
+        document.querySelector("#video_app > div > div > div.container_addon > div:nth-child(2)").classList.add("container_addon");
+        document.querySelector("#video_app > div > div > div.container_addon > div:nth-child(2)").classList.add("cascade_addon");
+        document.querySelector("#fullscreen_element").classList.add("big_video_addon");
       }
       existingDiv.classList.add("video_style");
       //document.getElementById('video_app');//getElementsByClassName('videorow')[0];
@@ -163,20 +168,20 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       // Function to handle search functionality
       function handleSearch() {
         const searchInput = document.getElementById('searchInput').value.toLowerCase();
-        if(searchInput != ""){
-        const captions = document.querySelectorAll('.caption-box pre');
+        if (searchInput != "") {
+          const captions = document.querySelectorAll('.caption-box pre');
 
-        captions.forEach(caption => {
-          const text = caption.textContent.toLowerCase();
-          if (text.includes(searchInput)) {
-            caption.style.display = 'block';
-            const highlightedText = text.replace(new RegExp(searchInput, 'gi'), match => `<span class="highlight">${match}</span>`);
-            caption.innerHTML = highlightedText;
-          } else {
-            caption.style.display = 'none';
-          }
-        });
-      }
+          captions.forEach(caption => {
+            const text = caption.textContent.toLowerCase();
+            if (text.includes(searchInput)) {
+              caption.style.display = 'block';
+              const highlightedText = text.replace(new RegExp(searchInput, 'gi'), match => `<span class="highlight">${match}</span>`);
+              caption.innerHTML = highlightedText;
+            } else {
+              caption.style.display = 'none';
+            }
+          });
+        }
       }
 
       // Create search bar element
@@ -188,7 +193,13 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       // Create container div to hold search bar and captionBlob
       const containerDiv = document.createElement('div');
-      containerDiv.classList.add('search-container');
+      if (msg.source.includes("lecturecapture")) {
+        containerDiv.classList.add('search-container');
+      }
+      else if (msg.source.includes("tower")) {
+        containerDiv.classList.add('search-container-tower');
+        containerDiv.classList.add('top_padding');
+      }
       containerDiv.appendChild(searchBar);
 
       // Get reference to existing captionBlob div
@@ -210,20 +221,20 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 if (vid)
   vid.onseeked = function () {
     let existingDiv = document.getElementsByClassName('caption-box')[0];
-    if(existingDiv){
-    let children = existingDiv.childNodes;
-    //console.log(children)
-    let mindif = 10000;
-    let cur = {};
-    seekedTime = vid.currentTime;
-    for (cap of children) {
-      let dif = seekedTime - cap.dataset.time;
-      if (dif >= 0 && dif <= mindif) {
-        mindif = dif;
-        cur = cap;
+    if (existingDiv) {
+      let children = existingDiv.childNodes;
+      //console.log(children)
+      let mindif = 10000;
+      let cur = {};
+      seekedTime = vid.currentTime;
+      for (cap of children) {
+        let dif = seekedTime - cap.dataset.time;
+        if (dif >= 0 && dif <= mindif) {
+          mindif = dif;
+          cur = cap;
+        }
       }
+      if (cur)
+        cur.scrollIntoView({ block: 'center' });
     }
-    if(cur)
-    cur.scrollIntoView({ block: 'center' });
-  }
   };
