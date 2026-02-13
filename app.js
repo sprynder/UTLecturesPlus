@@ -199,18 +199,310 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       injectElementOutside.classList.add("captionBlob");
       const injectElement = document.createElement('div');
       injectElement.className = "caption-box";
-      for (obj of caption_divs) {
-        const preElement = document.createElement('pre');
-        //preElement.className = "hover";
-        preElement.innerHTML = obj.timestamp + "\n" + obj.caption;
-        preElement.dataset.time = obj.milliseconds;
-        preElement.addEventListener('click', function (e) {
-          let video = document.getElementsByTagName("video")[0];;
-          video.currentTime = e.srcElement.dataset.time;
-        })
-        injectElement.appendChild(preElement);
 
+      function escapeRegExp(text) {
+        return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       }
+
+      function buildCaptionElement(obj, highlightTerm) {
+        const preElement = document.createElement('pre');
+        const rawText = obj.timestamp + "\n" + obj.caption;
+        preElement.dataset.time = obj.milliseconds;
+        preElement.dataset.rawText = rawText;
+        preElement.dataset.captionText = obj.caption;
+
+        if (highlightTerm) {
+          const safeRegex = new RegExp(escapeRegExp(highlightTerm), 'gi');
+          preElement.innerHTML = rawText.replace(safeRegex, function (match) {
+            return `<span class="highlight">${match}</span>`;
+          });
+        }
+        else {
+          preElement.textContent = rawText;
+        }
+
+        preElement.addEventListener('click', function (e) {
+          let video = document.getElementsByTagName("video")[0];
+          if (video) {
+            video.currentTime = e.currentTarget.dataset.time;
+          }
+        });
+
+        return preElement;
+      }
+
+      function renderCaptionList(items, highlightTerm) {
+        injectElement.innerHTML = '';
+        for (const item of items) {
+          injectElement.appendChild(buildCaptionElement(item, highlightTerm));
+        }
+      }
+
+      function createSemanticChunks(items) {
+        const chunkSize = 3;
+        const chunks = [];
+
+        for (let i = 0; i < items.length; i += chunkSize) {
+          const group = items.slice(i, i + chunkSize);
+          const combinedCaption = group.map(function (entry) { return entry.caption; }).join(' ');
+          const first = group[0];
+
+          if (!first || !combinedCaption.trim()) {
+            continue;
+          }
+
+          chunks.push({
+            id: `${i}`,
+            timestamp: first.timestamp,
+            milliseconds: first.milliseconds,
+            caption: combinedCaption
+          });
+        }
+
+        return chunks;
+      }
+
+      function dotProduct(a, b) {
+        let total = 0;
+        for (let i = 0; i < a.length; i++) {
+          total += a[i] * b[i];
+        }
+        return total;
+      }
+
+      function vectorNorm(a) {
+        return Math.sqrt(dotProduct(a, a));
+      }
+
+      function cosineSimilarity(a, b) {
+        const denom = vectorNorm(a) * vectorNorm(b);
+        if (!denom) {
+          return 0;
+        }
+        return dotProduct(a, b) / denom;
+      }
+
+      function requestEmbeddings(inputs, apiKey) {
+        return new Promise(function (resolve, reject) {
+          chrome.runtime.sendMessage(
+            {
+              type: 'createEmbeddings',
+              inputs: inputs,
+              apiKey: apiKey
+            },
+            function (response) {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+
+              if (!response || !response.ok || !Array.isArray(response.embeddings)) {
+                reject(new Error(response && response.error ? response.error : 'Unable to create embeddings.'));
+                return;
+              }
+
+              resolve(response.embeddings);
+            }
+          );
+        });
+      }
+
+      let transcriptSearchMode = 'keyword';
+      let semanticIndex = null;
+      let semanticSearchBusy = false;
+
+      const transcriptSearchStatus = document.createElement('div');
+      transcriptSearchStatus.classList.add('transcript-search-status');
+      transcriptSearchStatus.textContent = '';
+
+      const searchBar = document.createElement('input');
+      searchBar.setAttribute('type', 'text');
+      searchBar.setAttribute('id', 'searchInput');
+      searchBar.setAttribute('placeholder', 'Search captions...');
+
+      const searchControls = document.createElement('div');
+      searchControls.classList.add('transcript-search-controls');
+      const searchModeContainer = document.createElement('div');
+      searchModeContainer.classList.add('search-mode-container');
+
+      const keywordModeLabel = document.createElement('label');
+      keywordModeLabel.classList.add('search-mode-option');
+      const keywordModeInput = document.createElement('input');
+      keywordModeInput.type = 'radio';
+      keywordModeInput.name = 'transcriptSearchMode';
+      keywordModeInput.value = 'keyword';
+      keywordModeInput.checked = true;
+      const keywordModeText = document.createElement('span');
+      keywordModeText.textContent = 'Keyword';
+      keywordModeLabel.appendChild(keywordModeInput);
+      keywordModeLabel.appendChild(keywordModeText);
+
+      const semanticModeLabel = document.createElement('label');
+      semanticModeLabel.classList.add('search-mode-option');
+      const semanticModeInput = document.createElement('input');
+      semanticModeInput.type = 'radio';
+      semanticModeInput.name = 'transcriptSearchMode';
+      semanticModeInput.value = 'semantic';
+      const semanticModeText = document.createElement('span');
+      semanticModeText.textContent = 'Semantic';
+      semanticModeLabel.appendChild(semanticModeInput);
+      semanticModeLabel.appendChild(semanticModeText);
+
+      const semanticSearchButton = document.createElement('button');
+      semanticSearchButton.classList.add('button-4');
+      semanticSearchButton.textContent = 'Run Semantic Search';
+      semanticSearchButton.style.display = 'none';
+
+      searchModeContainer.appendChild(keywordModeLabel);
+      searchModeContainer.appendChild(semanticModeLabel);
+      searchControls.appendChild(searchBar);
+      searchControls.appendChild(searchModeContainer);
+      searchControls.appendChild(semanticSearchButton);
+      searchControls.appendChild(transcriptSearchStatus);
+
+      function runKeywordSearch() {
+        const query = searchBar.value.trim().toLowerCase();
+        transcriptSearchStatus.textContent = '';
+
+        if (!query) {
+          renderCaptionList(caption_divs, '');
+          return;
+        }
+
+        const filteredItems = caption_divs.filter(function (item) {
+          return item.caption.toLowerCase().includes(query) || item.timestamp.toLowerCase().includes(query);
+        });
+
+        renderCaptionList(filteredItems, query);
+      }
+
+      async function ensureSemanticIndex() {
+        if (semanticIndex) {
+          return semanticIndex;
+        }
+
+        const apiKey = getSavedOpenAiKey().trim();
+        if (!apiKey) {
+          throw new Error('Save an OpenAI API key in Summary tab before using semantic search.');
+        }
+
+        transcriptSearchStatus.textContent = 'Creating semantic index...';
+        const chunks = createSemanticChunks(caption_divs);
+        if (!chunks.length) {
+          throw new Error('Transcript has no content to index.');
+        }
+
+        const chunkTexts = chunks.map(function (chunk) { return chunk.caption.slice(0, 1200); });
+        const embeddings = await requestEmbeddings(chunkTexts, apiKey);
+
+        semanticIndex = chunks.map(function (chunk, index) {
+          return {
+            id: chunk.id,
+            timestamp: chunk.timestamp,
+            milliseconds: chunk.milliseconds,
+            caption: chunk.caption,
+            embedding: embeddings[index]
+          };
+        });
+
+        return semanticIndex;
+      }
+
+      async function runSemanticSearch() {
+        const query = searchBar.value.trim();
+        transcriptSearchStatus.textContent = '';
+
+        if (!query) {
+          renderCaptionList(caption_divs, '');
+          transcriptSearchStatus.textContent = 'Enter a query to run semantic search.';
+          return;
+        }
+
+        if (semanticSearchBusy) {
+          return;
+        }
+
+        semanticSearchBusy = true;
+        semanticSearchButton.disabled = true;
+
+        try {
+          const ranked = await retrieveTopSemanticChunks(query, 20, transcriptSearchStatus);
+
+          if (!ranked.length) {
+            renderCaptionList(caption_divs, '');
+            transcriptSearchStatus.textContent = 'No semantic matches found.';
+            return;
+          }
+
+          renderCaptionList(ranked, '');
+          transcriptSearchStatus.textContent = `Showing top ${ranked.length} semantic matches.`;
+        }
+        catch (error) {
+          transcriptSearchStatus.textContent = 'Error: ' + (error && error.message ? error.message : 'Semantic search failed.');
+        }
+        finally {
+          semanticSearchBusy = false;
+          semanticSearchButton.disabled = false;
+        }
+      }
+
+      async function retrieveTopSemanticChunks(query, maxResults, statusElement) {
+        const index = await ensureSemanticIndex();
+        const apiKey = getSavedOpenAiKey().trim();
+        if (statusElement) {
+          statusElement.textContent = 'Embedding query...';
+        }
+        const queryEmbeddings = await requestEmbeddings([query.slice(0, 1000)], apiKey);
+        const queryVector = queryEmbeddings[0];
+
+        if (statusElement) {
+          statusElement.textContent = 'Searching semantically...';
+        }
+        return index
+          .map(function (item) {
+            return {
+              item: item,
+              score: cosineSimilarity(queryVector, item.embedding)
+            };
+          })
+          .sort(function (a, b) {
+            return b.score - a.score;
+          })
+          .slice(0, maxResults)
+          .map(function (entry) { return entry.item; });
+      }
+
+      function handleSearchModeChange() {
+        transcriptSearchMode = semanticModeInput.checked ? 'semantic' : 'keyword';
+        semanticSearchButton.style.display = transcriptSearchMode === 'semantic' ? 'inline-block' : 'none';
+
+        if (transcriptSearchMode === 'keyword') {
+          runKeywordSearch();
+          return;
+        }
+
+        renderCaptionList(caption_divs, '');
+        transcriptSearchStatus.textContent = 'Semantic mode enabled. Enter a query and click Run Semantic Search.';
+      }
+
+      searchBar.addEventListener('input', function () {
+        if (transcriptSearchMode === 'keyword') {
+          runKeywordSearch();
+        }
+      });
+
+      searchBar.addEventListener('keydown', function (event) {
+        if (transcriptSearchMode === 'semantic' && event.key === 'Enter') {
+          event.preventDefault();
+          runSemanticSearch();
+        }
+      });
+
+      keywordModeInput.addEventListener('change', handleSearchModeChange);
+      semanticModeInput.addEventListener('change', handleSearchModeChange);
+      semanticSearchButton.addEventListener('click', runSemanticSearch);
+
+      renderCaptionList(caption_divs, '');
       const buttonDiv = document.createElement('div');
       buttonDiv.classList.add("right");
       const button = document.createElement('button');
@@ -254,36 +546,6 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       button.classList.add("button-4");
       buttonDiv.appendChild(button)
 
-      function handleSearch() {
-        const searchInput = searchBar.value.toLowerCase();
-        const captions = document.querySelectorAll('.caption-box pre');
-
-        if (searchInput !== "") {
-          captions.forEach(caption => {
-            const text = caption.textContent.toLowerCase();
-            if (text.includes(searchInput)) {
-              caption.style.display = 'block';
-              const highlightedText = caption.textContent.replace(new RegExp(searchInput, 'gi'), match => `<span class="highlight">${match}</span>`);
-              caption.innerHTML = highlightedText;
-            } else {
-              caption.style.display = 'none';
-            }
-          });
-          return;
-        }
-
-        captions.forEach(caption => {
-          caption.style.display = 'block';
-          caption.innerHTML = caption.textContent;
-        });
-      }
-
-      const searchBar = document.createElement('input');
-      searchBar.setAttribute('type', 'text');
-      searchBar.setAttribute('id', 'searchInput');
-      searchBar.setAttribute('placeholder', 'Search captions...');
-      searchBar.addEventListener('input', handleSearch);
-
       const tabsDiv = document.createElement('div');
       tabsDiv.classList.add('caption-tabs');
       const transcriptTab = document.createElement('button');
@@ -292,18 +554,26 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       const summaryTab = document.createElement('button');
       summaryTab.classList.add('tab-btn');
       summaryTab.textContent = 'Summary';
+      const ragTab = document.createElement('button');
+      ragTab.classList.add('tab-btn');
+      ragTab.textContent = 'RAG';
       tabsDiv.appendChild(transcriptTab);
       tabsDiv.appendChild(summaryTab);
+      tabsDiv.appendChild(ragTab);
 
       const transcriptPanel = document.createElement('div');
       transcriptPanel.classList.add('tab-panel');
-      transcriptPanel.appendChild(searchBar);
+      transcriptPanel.appendChild(searchControls);
       transcriptPanel.appendChild(injectElement);
       transcriptPanel.appendChild(buttonDiv);
 
       const summaryPanel = document.createElement('div');
       summaryPanel.classList.add('tab-panel', 'summary-panel');
       summaryPanel.style.display = 'none';
+
+      const ragPanel = document.createElement('div');
+      ragPanel.classList.add('tab-panel', 'rag-panel');
+      ragPanel.style.display = 'none';
 
       const summaryStatus = document.createElement('div');
       summaryStatus.classList.add('summary-status');
@@ -367,6 +637,21 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       summaryOutput.classList.add('summary-output');
       summaryOutput.textContent = 'Generate a summary to view it here.';
 
+      const ragStatus = document.createElement('div');
+      ragStatus.classList.add('summary-status');
+
+      const ragPromptInput = document.createElement('textarea');
+      ragPromptInput.classList.add('custom-prompt-input');
+      ragPromptInput.placeholder = 'Enter your custom RAG prompt...';
+
+      const ragRunButton = document.createElement('button');
+      ragRunButton.classList.add('button-4', 'summary-action-btn');
+      ragRunButton.textContent = 'Run RAG Prompt';
+
+      const ragOutput = document.createElement('div');
+      ragOutput.classList.add('summary-output');
+      ragOutput.textContent = 'RAG answer will appear here.';
+
       const transcriptText = caption_divs.map(item => item.caption).join('\n');
 
       function refreshSummaryState(message) {
@@ -384,6 +669,19 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
           : 'No API key found. Enter your OpenAI API key to continue.';
       }
 
+      function refreshRagState(message) {
+        const hasKey = getSavedOpenAiKey().trim() !== '';
+        ragRunButton.style.display = hasKey ? 'inline-block' : 'none';
+        ragPromptInput.style.display = hasKey ? 'block' : 'none';
+        if (message) {
+          ragStatus.textContent = message;
+          return;
+        }
+        ragStatus.textContent = hasKey
+          ? 'Use a custom prompt. RAG will retrieve relevant chunks first, then generate an answer.'
+          : 'No API key found. Save your key in Summary tab to use RAG.';
+      }
+
       function refreshPromptModeState() {
         const isCustomMode = customPromptRadio.checked;
         customPromptInput.style.display = isCustomMode ? 'block' : 'none';
@@ -392,12 +690,19 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       function setTab(tabName) {
         const showTranscript = tabName === 'transcript';
+        const showSummary = tabName === 'summary';
+        const showRag = tabName === 'rag';
         transcriptPanel.style.display = showTranscript ? 'flex' : 'none';
-        summaryPanel.style.display = showTranscript ? 'none' : 'flex';
+        summaryPanel.style.display = showSummary ? 'flex' : 'none';
+        ragPanel.style.display = showRag ? 'flex' : 'none';
         transcriptTab.classList.toggle('tab-active', showTranscript);
-        summaryTab.classList.toggle('tab-active', !showTranscript);
-        if (!showTranscript) {
+        summaryTab.classList.toggle('tab-active', showSummary);
+        ragTab.classList.toggle('tab-active', showRag);
+        if (showSummary) {
           refreshSummaryState();
+        }
+        if (showRag) {
+          refreshRagState();
         }
       }
 
@@ -407,6 +712,10 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       summaryTab.addEventListener('click', function () {
         setTab('summary');
+      });
+
+      ragTab.addEventListener('click', function () {
+        setTab('rag');
       });
 
       defaultPromptRadio.addEventListener('change', refreshPromptModeState);
@@ -427,6 +736,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
         keyInput.value = '';
         refreshSummaryState('API key saved. You can now summarize the transcript.');
+        refreshRagState('API key saved. You can now run RAG prompts.');
       });
 
       summarizeButton.addEventListener('click', function () {
@@ -484,6 +794,69 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
         }
         summaryOutput.textContent = 'Generate a summary to view it here.';
         refreshSummaryState('Saved API key removed. Enter a new key to continue.');
+        refreshRagState('Saved API key removed. Enter a key in Summary tab to use RAG.');
+      });
+
+      ragRunButton.addEventListener('click', async function () {
+        const apiKey = getSavedOpenAiKey().trim();
+        const ragPrompt = ragPromptInput.value.trim();
+
+        if (!apiKey) {
+          refreshRagState('No API key found. Save your key in Summary tab first.');
+          return;
+        }
+
+        if (!ragPrompt) {
+          refreshRagState('Please enter a custom RAG prompt.');
+          return;
+        }
+
+        ragRunButton.disabled = true;
+        ragRunButton.textContent = 'Running RAG...';
+
+        try {
+          const retrievedChunks = await retrieveTopSemanticChunks(ragPrompt, 8, ragStatus);
+
+          if (!retrievedChunks.length) {
+            ragStatus.textContent = 'No semantic context found for this prompt.';
+            ragOutput.textContent = 'RAG answer will appear here.';
+            ragRunButton.disabled = false;
+            ragRunButton.textContent = 'Run RAG Prompt';
+            return;
+          }
+
+          ragStatus.textContent = 'Generating grounded answer...';
+          chrome.runtime.sendMessage(
+            {
+              type: 'ragPromptWithContext',
+              apiKey: apiKey,
+              prompt: ragPrompt,
+              contextChunks: retrievedChunks
+            },
+            function (response) {
+              ragRunButton.disabled = false;
+              ragRunButton.textContent = 'Run RAG Prompt';
+
+              if (chrome.runtime.lastError) {
+                ragStatus.textContent = 'Error: ' + chrome.runtime.lastError.message;
+                return;
+              }
+
+              if (!response || !response.ok) {
+                ragStatus.textContent = 'Error: ' + (response && response.error ? response.error : 'RAG request failed.');
+                return;
+              }
+
+              ragStatus.textContent = `RAG answer generated using ${retrievedChunks.length} retrieved chunks.`;
+              ragOutput.textContent = response.answer;
+            }
+          );
+        }
+        catch (error) {
+          ragRunButton.disabled = false;
+          ragRunButton.textContent = 'Run RAG Prompt';
+          ragStatus.textContent = 'Error: ' + (error && error.message ? error.message : 'RAG pipeline failed.');
+        }
       });
 
       summaryPanel.appendChild(summaryStatus);
@@ -493,9 +866,15 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       summaryPanel.appendChild(removeKeyButton);
       summaryPanel.appendChild(summaryOutput);
 
+      ragPanel.appendChild(ragStatus);
+      ragPanel.appendChild(ragPromptInput);
+      ragPanel.appendChild(ragRunButton);
+      ragPanel.appendChild(ragOutput);
+
       injectElementOutside.appendChild(tabsDiv);
       injectElementOutside.appendChild(transcriptPanel);
       injectElementOutside.appendChild(summaryPanel);
+      injectElementOutside.appendChild(ragPanel);
 
       const containerDiv = document.createElement('div');
       if (msg.source.includes("lecturecapture")) {
@@ -514,6 +893,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       setTab('transcript');
       refreshPromptModeState();
       refreshSummaryState();
+      refreshRagState();
       document.body.appendChild(flexContainer);
     }
 
