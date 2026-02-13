@@ -2,9 +2,22 @@ var IFRAME = document.createElement("IFRAME");
 
 function timestampToMilliseconds(timestamp) {
   // Split the timestamp into hours, minutes, seconds, and seconds
- 
-  const [hours, minutes, secondsWithMillis] = timestamp.split(':');
+  const splitted_time = timestamp.split(':');
+  let hours = "0";
+  let minutes = "0";
+  let secondsWithMillis = "00.000"
+  if (splitted_time.length === 3){
+    hours = splitted_time[0]
+    minutes = splitted_time[1]
+    secondsWithMillis = splitted_time[2]
+  }
+  else if (splitted_time.length === 2)
+  {
+    minutes = splitted_time[0]
+    secondsWithMillis = splitted_time[1]
+  }
 
+  //console.log(secondsWithMillis)
   // Split secondsWithMillis into seconds and seconds
   const [seconds, milliseconds] = secondsWithMillis.split('.');
 
@@ -43,7 +56,7 @@ function auto_scroll() {
       cap.style.backgroundColor = "white"
     }
     if (cur) {
-      console.log(cur)
+     // console.log(cur)
       cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
       cur.style.backgroundColor = "LightGray";
     }
@@ -78,10 +91,7 @@ if (vid) {
     };
   
 }
-else
-{
-  console.log("AHHHH")
-}
+
 }, delayInMilliseconds);
 
 
@@ -207,9 +217,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
               cur.style.backgroundColor = "LightGray";
             };
           }
-          else{
-            console.log("NO VID")
-          }
+          
           scroll = false;
           button.style.backgroundColor = "#DCDCDC";
           button.innerHTML = "Auto-Scroll: Off"
