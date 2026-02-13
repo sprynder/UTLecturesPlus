@@ -18,10 +18,12 @@
     ],
     "permissions": [
       "webRequest",
-      "tabs"
+      "tabs",
+      "storage"
     ],
     "host_permissions": [
-      "*://*.la.utexas.edu/*"
+      "*://*.la.utexas.edu/*",
+      "https://api.openai.com/*"
       ],
     "background": {
       "service_worker": "background.js"

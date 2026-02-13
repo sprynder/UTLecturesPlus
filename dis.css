@@ -1,10 +1,13 @@
 .caption-box {
 
     width: 100%; 
-    height:  95%;
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
     border: 1px solid #ccc;
     font: 16px/26px Georgia, Garamond, Serif;
-    overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
     resize: horizontal;
 }
 .top_padding {
@@ -32,19 +35,117 @@
 .captionBlob
 {
     padding: 10px;
-    height:  95%;
+  height:  100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .search-container 
 {
     padding-top: 10px;
     width: 20%;
+    height: 85vh;
+    max-height: 85vh;
+    min-height: 0;
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.caption-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tab-btn {
+  appearance: none;
+  background-color: #FAFBFC;
+  border: 1px solid rgba(27, 31, 35, 0.15);
+  border-radius: 6px;
+  color: #24292E;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.tab-btn.tab-active {
+  background-color: #EDEFF2;
+}
+
+.summary-panel {
+  overflow: hidden;
+}
+
+.summary-status {
+  font-size: 13px;
+}
+
+.summary-key-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-prompt-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-radio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.custom-prompt-input {
+  width: 95%;
+  min-height: 90px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.summary-key-input {
+  width: 95%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.summary-action-btn {
+  width: fit-content;
+}
+
+.summary-output {
+  border: 1px solid #ccc;
+  padding: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .search-container-tower 
 {
     width: 20%;
-    height: 100%;
+  height: 85vh;
+  max-height: 85vh;
+  min-height: 0;
 }
 
 #searchInput 
@@ -65,14 +166,18 @@
 }
 /* Flex container */
 .flex-container {
-    height: 85%;
+    height: 85vh;
+    max-height: 85vh;
     display: flex;
     flex-direction: row;
-    width: 100%
+    width: 100%;
+    overflow: hidden;
 }
 .video_style
 {
   width: 85%;
+  height: 100%;
+  overflow: hidden;
 }
 .ic-Layout-contentWrapper{
     height: 90%;
