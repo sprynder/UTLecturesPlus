@@ -37,6 +37,8 @@ function isNumeric(input) {
 }
 
 const OPENAI_KEY_STORAGE_KEY = 'ut_lectures_plus_openai_api_key';
+const EXPERIMENTAL_FEATURES_STORAGE_KEY = 'experimentalFeaturesEnabled';
+const TRANSCRIPT_ROOT_ID = 'utlp-transcript-root';
 
 function getSavedOpenAiKey() {
   try {
@@ -64,9 +66,22 @@ function removeOpenAiKey() {
   }
 }
 
+function getExperimentalFeaturesEnabled() {
+  return new Promise(function (resolve) {
+    try {
+      chrome.storage.local.get({ [EXPERIMENTAL_FEATURES_STORAGE_KEY]: false }, function (result) {
+        resolve(!!result[EXPERIMENTAL_FEATURES_STORAGE_KEY]);
+      });
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
 let scroll = true;
 let video_url = null;
 var vid = null;
+let transcriptUiMountInProgress = false;
 function auto_scroll() {
   let existingDiv = document.getElementsByClassName('caption-box')[0];
   if (existingDiv) {
@@ -127,14 +142,21 @@ if (vid) {
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
 
   //console.log(msg)
-  let loadCheck = document.getElementsByClassName('flex-container')[0]
-  if (msg.captions && !loadCheck) {
+  let loadCheck = document.getElementById(TRANSCRIPT_ROOT_ID) || document.getElementsByClassName('flex-container')[0]
+  if (msg.captions && !loadCheck && !transcriptUiMountInProgress) {
+    transcriptUiMountInProgress = true;
+    try {
     //modified_captions = addNewlineBeforeTimestamps(msg.captions)
     cur_url = window.document.location.href
     //console.log(cur_url)
 
 
     if (msg.source.includes("utexas")) {
+      const experimentalFeaturesEnabled = await getExperimentalFeaturesEnabled();
+      const existingRootAfterAwait = document.getElementById(TRANSCRIPT_ROOT_ID);
+      if (existingRootAfterAwait) {
+        return;
+      }
       let caption_divs = [];
       let captions = msg.captions;
       let pattern = /^\d+\s*\n/gm;
@@ -191,6 +213,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       existingDiv.classList.add("video_style");
       //document.getElementById('video_app');//getElementsByClassName('videorow')[0];
       const flexContainer = document.createElement('div');
+      flexContainer.id = TRANSCRIPT_ROOT_ID;
       flexContainer.classList.add('flex-container');
 
       flexContainer.appendChild(existingDiv);
@@ -222,6 +245,11 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
         }
 
         preElement.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === 'function') {
+            e.stopImmediatePropagation();
+          }
           let video = document.getElementsByTagName("video")[0];
           if (video) {
             video.currentTime = e.currentTarget.dataset.time;
@@ -320,6 +348,15 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       searchBar.setAttribute('id', 'searchInput');
       searchBar.setAttribute('placeholder', 'Search captions...');
 
+      const clearSearchButton = document.createElement('button');
+      clearSearchButton.classList.add('button-4', 'search-clear-btn');
+      clearSearchButton.textContent = 'Clear';
+
+      const searchInputRow = document.createElement('div');
+      searchInputRow.classList.add('search-input-row');
+      searchInputRow.appendChild(searchBar);
+      searchInputRow.appendChild(clearSearchButton);
+
       const searchControls = document.createElement('div');
       searchControls.classList.add('transcript-search-controls');
       const searchModeContainer = document.createElement('div');
@@ -354,10 +391,14 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       semanticSearchButton.style.display = 'none';
 
       searchModeContainer.appendChild(keywordModeLabel);
-      searchModeContainer.appendChild(semanticModeLabel);
-      searchControls.appendChild(searchBar);
-      searchControls.appendChild(searchModeContainer);
-      searchControls.appendChild(semanticSearchButton);
+      searchControls.appendChild(searchInputRow);
+      if (experimentalFeaturesEnabled) {
+        searchModeContainer.appendChild(semanticModeLabel);
+        searchControls.appendChild(searchModeContainer);
+        searchControls.appendChild(semanticSearchButton);
+      } else {
+        transcriptSearchStatus.style.display = 'none';
+      }
       searchControls.appendChild(transcriptSearchStatus);
 
       function runKeywordSearch() {
@@ -498,9 +539,23 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
         }
       });
 
+      clearSearchButton.addEventListener('click', function () {
+        searchBar.value = '';
+        renderCaptionList(caption_divs, '');
+        if (transcriptSearchMode === 'keyword') {
+          transcriptSearchStatus.textContent = '';
+        }
+        else {
+          transcriptSearchStatus.textContent = 'Semantic mode enabled. Enter a query and click Run Semantic Search.';
+        }
+        searchBar.focus();
+      });
+
       keywordModeInput.addEventListener('change', handleSearchModeChange);
-      semanticModeInput.addEventListener('change', handleSearchModeChange);
-      semanticSearchButton.addEventListener('click', runSemanticSearch);
+      if (experimentalFeaturesEnabled) {
+        semanticModeInput.addEventListener('change', handleSearchModeChange);
+        semanticSearchButton.addEventListener('click', runSemanticSearch);
+      }
 
       renderCaptionList(caption_divs, '');
       const buttonDiv = document.createElement('div');
@@ -556,7 +611,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       summaryTab.textContent = 'Summary';
       const ragTab = document.createElement('button');
       ragTab.classList.add('tab-btn');
-      ragTab.textContent = 'RAG';
+      ragTab.textContent = 'Study Agent';
       tabsDiv.appendChild(transcriptTab);
       tabsDiv.appendChild(summaryTab);
       tabsDiv.appendChild(ragTab);
@@ -642,15 +697,15 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       const ragPromptInput = document.createElement('textarea');
       ragPromptInput.classList.add('custom-prompt-input');
-      ragPromptInput.placeholder = 'Enter your custom RAG prompt...';
+      ragPromptInput.placeholder = 'Ask Study Agent anything about this lecture...';
 
       const ragRunButton = document.createElement('button');
       ragRunButton.classList.add('button-4', 'summary-action-btn');
-      ragRunButton.textContent = 'Run RAG Prompt';
+      ragRunButton.textContent = 'Ask Study Agent';
 
       const ragOutput = document.createElement('div');
       ragOutput.classList.add('summary-output');
-      ragOutput.textContent = 'RAG answer will appear here.';
+      ragOutput.textContent = 'Study Agent response will appear here.';
 
       const transcriptText = caption_divs.map(item => item.caption).join('\n');
 
@@ -678,8 +733,8 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
           return;
         }
         ragStatus.textContent = hasKey
-          ? 'Use a custom prompt. RAG will retrieve relevant chunks first, then generate an answer.'
-          : 'No API key found. Save your key in Summary tab to use RAG.';
+          ? 'Ask a question. Study Agent will search for the relevant parts of the lecture and use them to provide the best possible answer.'
+          : 'No API key found. Save your key in Summary tab to use Study Agent.';
       }
 
       function refreshPromptModeState() {
@@ -736,7 +791,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
         keyInput.value = '';
         refreshSummaryState('API key saved. You can now summarize the transcript.');
-        refreshRagState('API key saved. You can now run RAG prompts.');
+        refreshRagState('API key saved. You can now use Study Agent.');
       });
 
       summarizeButton.addEventListener('click', function () {
@@ -794,7 +849,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
         }
         summaryOutput.textContent = 'Generate a summary to view it here.';
         refreshSummaryState('Saved API key removed. Enter a new key to continue.');
-        refreshRagState('Saved API key removed. Enter a key in Summary tab to use RAG.');
+        refreshRagState('Saved API key removed. Enter a key in Summary tab to use Study Agent.');
       });
 
       ragRunButton.addEventListener('click', async function () {
@@ -807,21 +862,21 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
         }
 
         if (!ragPrompt) {
-          refreshRagState('Please enter a custom RAG prompt.');
+          refreshRagState('Please enter a Study Agent question.');
           return;
         }
 
         ragRunButton.disabled = true;
-        ragRunButton.textContent = 'Running RAG...';
+        ragRunButton.textContent = 'Thinking...';
 
         try {
           const retrievedChunks = await retrieveTopSemanticChunks(ragPrompt, 8, ragStatus);
 
           if (!retrievedChunks.length) {
             ragStatus.textContent = 'No semantic context found for this prompt.';
-            ragOutput.textContent = 'RAG answer will appear here.';
+            ragOutput.textContent = 'Study Agent response will appear here.';
             ragRunButton.disabled = false;
-            ragRunButton.textContent = 'Run RAG Prompt';
+            ragRunButton.textContent = 'Ask Study Agent';
             return;
           }
 
@@ -835,7 +890,7 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
             },
             function (response) {
               ragRunButton.disabled = false;
-              ragRunButton.textContent = 'Run RAG Prompt';
+              ragRunButton.textContent = 'Ask Study Agent';
 
               if (chrome.runtime.lastError) {
                 ragStatus.textContent = 'Error: ' + chrome.runtime.lastError.message;
@@ -843,19 +898,19 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
               }
 
               if (!response || !response.ok) {
-                ragStatus.textContent = 'Error: ' + (response && response.error ? response.error : 'RAG request failed.');
+                ragStatus.textContent = 'Error: ' + (response && response.error ? response.error : 'Study Agent request failed.');
                 return;
               }
 
-              ragStatus.textContent = `RAG answer generated using ${retrievedChunks.length} retrieved chunks.`;
+              ragStatus.textContent = `Study Agent response generated using ${retrievedChunks.length} retrieved chunks.`;
               ragOutput.textContent = response.answer;
             }
           );
         }
         catch (error) {
           ragRunButton.disabled = false;
-          ragRunButton.textContent = 'Run RAG Prompt';
-          ragStatus.textContent = 'Error: ' + (error && error.message ? error.message : 'RAG pipeline failed.');
+          ragRunButton.textContent = 'Ask Study Agent';
+          ragStatus.textContent = 'Error: ' + (error && error.message ? error.message : 'Study Agent pipeline failed.');
         }
       });
 
@@ -871,10 +926,15 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
       ragPanel.appendChild(ragRunButton);
       ragPanel.appendChild(ragOutput);
 
-      injectElementOutside.appendChild(tabsDiv);
-      injectElementOutside.appendChild(transcriptPanel);
-      injectElementOutside.appendChild(summaryPanel);
-      injectElementOutside.appendChild(ragPanel);
+      if (experimentalFeaturesEnabled) {
+        injectElementOutside.appendChild(tabsDiv);
+        injectElementOutside.appendChild(transcriptPanel);
+        injectElementOutside.appendChild(summaryPanel);
+        injectElementOutside.appendChild(ragPanel);
+      }
+      else {
+        injectElementOutside.appendChild(transcriptPanel);
+      }
 
       const containerDiv = document.createElement('div');
       if (msg.source.includes("lecturecapture")) {
@@ -890,11 +950,18 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 
       flexContainer.appendChild(containerDiv);
 
-      setTab('transcript');
-      refreshPromptModeState();
-      refreshSummaryState();
-      refreshRagState();
+      if (experimentalFeaturesEnabled) {
+        setTab('transcript');
+        refreshPromptModeState();
+        refreshSummaryState();
+        refreshRagState();
+      }
       document.body.appendChild(flexContainer);
+    }
+
+    }
+    finally {
+      transcriptUiMountInProgress = false;
     }
 
   }

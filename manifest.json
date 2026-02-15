@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "UT Lectures Plus",
     "description": "Base Level Extension",
-    "version": "4.1",
+    "version": "5",
     "content_scripts": [
       {
         "matches": [
@@ -27,5 +27,9 @@
       ],
     "background": {
       "service_worker": "background.js"
+    },
+    "action": {
+      "default_title": "UT Lectures Plus",
+      "default_popup": "popup.html"
     }
   }
